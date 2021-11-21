@@ -1,6 +1,7 @@
 using CoreWebAPI.Entities;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -22,7 +23,22 @@ namespace CoreWebAPI
         {
 
             services.AddControllers();
-            services.AddDbContext<MeetupContext>();
+            services.AddDbContext<MeetupContext>(options =>
+            {
+
+                var server = Configuration["ServerName"];
+                var port = "1433";
+                var database = Configuration["Database"];
+                var user = Configuration["UserName"];
+                var password = Configuration["Password"];
+
+                options.UseSqlServer(
+                    $"Server={server},{port};Initial Catalog={database};User ID={user};Password={password}",
+                    sqlServer => sqlServer.MigrationsAssembly("CoreWebAPI"));
+
+            });
+
+
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "CoreWebAPI", Version = "v1" });
@@ -30,8 +46,11 @@ namespace CoreWebAPI
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, MeetupContext meetupContext)
         {
+            // migrate any database changes on startup (includes initial db creation)
+            meetupContext.Database.Migrate();
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
